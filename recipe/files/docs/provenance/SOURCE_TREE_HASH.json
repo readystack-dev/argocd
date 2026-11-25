@@ -1,0 +1,9 @@
+{
+  "schema": "kitforge.source_tree_hash.v1",
+  "slug": "argocd",
+  "repo": "https://github.com/argoproj/argo-cd.git",
+  "ref": "v3.6.2",
+  "commit": "8e8268ef2f3df99ca95663f5080fa6056f156805",
+  "tree_listing_sha256": "f7bcddea681e7b03c64ce3e35b4069e8c44a63a41e4c0d9191ddc602d6142536",
+  "file_count": 6104
+}

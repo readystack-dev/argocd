@@ -1,0 +1,6 @@
+image_manifest_digest=sha256:6f9db9a862430fd368d5994c960c0a20e4af83565e2e53a2ce6cbfbd96752d29
+config_digest=sha256:8cb3e4786b06a85b9b17fadd454700ccb82ecca863009d5fcb3be781da418793
+tag=readystack/argocd:v3.6.2-CE-ubuntu24.04-r2
+probe_port=8080
+probe_path=/healthz
+probe_timeout=300

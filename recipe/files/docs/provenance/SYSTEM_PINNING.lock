@@ -1,0 +1,11 @@
+git
+tini
+ca-certificates
+gpg
+gpg-agent
+tzdata
+openssh-client
+redis-server
+supervisor
+uidmap
+curl

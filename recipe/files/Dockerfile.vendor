@@ -1,0 +1,200 @@
+# =====================================================================
+# Argo CD v3.6.2 VENDOR STAGE (online). Does ALL the network work and exports a build-ready,
+# fully-vendored tree, so Dockerfile.offline.pinned builds with --network=none:
+#   - argocd-src   : argo-cd v3.6.2 with the UI built from source (pnpm, webpack) into ui/dist/app
+#                    (embedded by ui/embed.go), CVE floors applied raise-only, `go mod vendor`.
+#                    manifests/install.yaml (the CRDs/RBAC/config bootstrap.sh applies) rides along.
+#   - helm-src     : helm v4.3.2   (upstream v3.6.2's pin, helm's latest release)
+#   - kustomize-src: kustomize v5.8.3 (upstream v3.6.2's pin; needs Go 1.27, which this kit now builds on)
+#   - gitlfs-src   : git-lfs v3.8.1 (upstream v3.6.2's pin, git-lfs's latest release)
+#     argocd's repo-server shells out to helm/kustomize/git-lfs. Upstream's hack/install.sh downloads
+#     their PREBUILT release binaries (stale Go stdlib + modules, and network at build time); all three
+#     are rebuilt from source here on the same Go toolchain as argocd.
+#   - k3s-src      : k3s v1.37.2+k3s1 (the embedded API server argocd's config/CRDs live in; Kubernetes 1.37
+#                    matches argocd's client-go v0.37.0), ./cmd/server vendored with the same CVE floors and
+#                    rebuilt from source on the same Go toolchain; the release binary is not used (stage 6).
+#   - debs         : apt dist-upgrade closure + runtime packages from the SAME pinned ubuntu base the
+#                    offline build FROMs, dpkg-installed offline (clears the OS-package CVEs).
+# Export (assemble_kit):  docker build -f Dockerfile.vendor --target export -t argocd-vendor:extract .
+#                         then docker cp the image's / into ./vendored
+# =====================================================================
+
+# --- 1) The web UI, built from source (embedded into the argocd binary via go:embed) -------------
+FROM node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4 AS ui
+ENV NPM_CONFIG_FUND=false NPM_CONFIG_AUDIT=false CI=true
+WORKDIR /argo
+RUN git clone --depth 1 --branch v3.6.2 -q https://github.com/argoproj/argo-cd.git . && \
+    test "$(git rev-parse HEAD)" = 8e8268ef2f3df99ca95663f5080fa6056f156805
+WORKDIR /argo/ui
+# Same commands as upstream's argocd-ui stage (Dockerfile at v3.6.2): corepack 0.34.6 -> pnpm from
+# package.json's packageManager, frozen lockfile, production webpack build.
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile && \
+    NODE_ENV=production NODE_ONLINE_ENV=online ARGO_VERSION=v3.6.2 NODE_OPTIONS=--max_old_space_size=8192 pnpm build && \
+    test -f dist/app/index.html && echo "ui dist: $(du -sh dist/app | cut -f1)"
+
+# --- 2) argocd: Go module tree, CVE floors, vendored --------------------------------------------
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS argocdvendor
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local
+WORKDIR /src
+RUN git clone --depth 1 --branch v3.6.2 -q https://github.com/argoproj/argo-cd.git . && \
+    test "$(git rev-parse HEAD)" = 8e8268ef2f3df99ca95663f5080fa6056f156805
+COPY --from=ui /argo/ui/dist/app/ ui/dist/app/
+# CVE floors (mirror strategies/argocd.json dep_bumps). floor() raises a module only when the source
+# pins it LOWER and never lowers it: a bare `go get m@vX` SETS the version, and v3.5.x already requires
+# grpc v1.81.1, above the v1.79.3 the old kit forced (the traefik chain-475 MVS downgrade). Exact
+# versions only, never @latest: an unbounded floor resolves differently on every vendor run.
+# floor() fails closed (L-A133): `go list -mod=mod`, and only "not a known dependency" skips a module; any other
+# error (a missing go.sum entry after an earlier raise, the proxy unreachable) stops the step instead of skipping
+# every later floor, as caddy chain 741 did.
+RUN floor() { e=$(mktemp); cur=$(go list -mod=mod -m -f '{{.Version}}' "$1" 2>"$e") || \
+        { grep -q 'not a known dependency' "$e" && return 0; cat "$e" >&2; return 1; }; [ -n "$cur" ] || return 0; \
+      [ "$(printf '%s\n%s\n' "$cur" "$2" | sort -V | tail -1)" = "$cur" ] || go mod edit -require="$1@$2"; } && \
+    floor github.com/go-git/go-git/v5 v5.19.2 && \
+    floor google.golang.org/grpc v1.83.2 && \
+    floor golang.org/x/crypto v0.56.0 && \
+    floor golang.org/x/net v0.62.0 && \
+    floor golang.org/x/text v0.41.0 && \
+    floor oras.land/oras-go/v2 v2.6.2 && \
+    floor github.com/klauspost/compress v1.20.2 && floor github.com/go-jose/go-jose/v4 v4.1.6 && \
+    floor go.opentelemetry.io/otel v1.47.0 && \
+    floor go.opentelemetry.io/otel/trace v1.47.0 && \
+    floor go.opentelemetry.io/otel/sdk v1.47.0 && \
+    floor go.opentelemetry.io/otel/metric v1.47.0 && \
+    floor go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 && \
+    floor go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0 && \
+    go mod tidy && go mod vendor && \
+    kv=$(go list -mod=mod -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' k8s.io/client-go) && \
+    { [ "$kv" = v0.37.0 ] || { echo "k8s.io/client-go resolved to '$kv'; Dockerfile.offline.pinned stamps kubectlVersion=v0.37.0" >&2; exit 1; }; } && \
+    rm -rf .git ui/node_modules
+# ^ k8s.io/client-go is what upstream's Makefile stamps as common.kubectlVersion; Dockerfile.offline.pinned
+#   hardcodes v0.37.0 (v3.6.2's go.mod), so a drift here fails the vendor build instead of mislabelling the binary,
+#   and says so: chain 872 (2026-11-08) parked here on a bare `test` still expecting v3.5.6's v0.36.1, which exits 1
+#   without a word, so the log's last lines were go mod tidy's downloads.
+#   .git is stripped: build_kit serves the kit as a git context and rejects a nested repository.
+
+# --- 3) helm v4.3.2 -----------------------------------------------------------------------------
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS helmvendor
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off
+WORKDIR /helm
+RUN git clone --depth 1 --branch v4.3.2 -q https://github.com/helm/helm.git . && \
+    test "$(git rev-parse HEAD)" = 8346aaa55e7161f7c547212d0a87f01367976727
+RUN floor() { e=$(mktemp); cur=$(go list -mod=mod -m -f '{{.Version}}' "$1" 2>"$e") || \
+        { grep -q 'not a known dependency' "$e" && return 0; cat "$e" >&2; return 1; }; [ -n "$cur" ] || return 0; \
+      [ "$(printf '%s\n%s\n' "$cur" "$2" | sort -V | tail -1)" = "$cur" ] || go mod edit -require="$1@$2"; } && \
+    floor google.golang.org/grpc v1.83.2 && \
+    floor golang.org/x/crypto v0.56.0 && \
+    floor golang.org/x/net v0.62.0 && \
+    floor golang.org/x/text v0.41.0 && \
+    floor oras.land/oras-go/v2 v2.6.2 && \
+    floor github.com/klauspost/compress v1.20.2 && floor github.com/go-jose/go-jose/v4 v4.1.6 && \
+    go mod tidy && go mod vendor && rm -rf .git
+
+# --- 4) kustomize v5.8.3 (module kustomize/ inside the monorepo; released api/kyaml, no go.work) ---
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS kustomizevendor
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off
+WORKDIR /kz
+RUN git clone --depth 1 --branch kustomize/v5.8.3 -q https://github.com/kubernetes-sigs/kustomize.git . && \
+    test "$(git rev-parse HEAD)" = 6e4452f7b136fb9a261afe60830867a875183a71
+WORKDIR /kz/kustomize
+RUN floor() { e=$(mktemp); cur=$(go list -mod=mod -m -f '{{.Version}}' "$1" 2>"$e") || \
+        { grep -q 'not a known dependency' "$e" && return 0; cat "$e" >&2; return 1; }; [ -n "$cur" ] || return 0; \
+      [ "$(printf '%s\n%s\n' "$cur" "$2" | sort -V | tail -1)" = "$cur" ] || go mod edit -require="$1@$2"; } && \
+    floor golang.org/x/crypto v0.56.0 && \
+    floor golang.org/x/net v0.62.0 && \
+    floor golang.org/x/text v0.41.0 && floor github.com/go-jose/go-jose/v4 v4.1.6 && floor github.com/klauspost/compress v1.20.2 && \
+    go mod tidy && go mod vendor && rm -rf /kz/.git
+
+# --- 5) git-lfs v3.8.1 --------------------------------------------------------------------------
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS gitlfsvendor
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off
+WORKDIR /lfs
+RUN git clone --depth 1 --branch v3.8.1 -q https://github.com/git-lfs/git-lfs.git . && \
+    test "$(git rev-parse HEAD)" = a662a6dbfedf706cfa9fc7a5b7bcc7ba2e2c8a65
+RUN floor() { e=$(mktemp); cur=$(go list -mod=mod -m -f '{{.Version}}' "$1" 2>"$e") || \
+        { grep -q 'not a known dependency' "$e" && return 0; cat "$e" >&2; return 1; }; [ -n "$cur" ] || return 0; \
+      [ "$(printf '%s\n%s\n' "$cur" "$2" | sort -V | tail -1)" = "$cur" ] || go mod edit -require="$1@$2"; } && \
+    floor golang.org/x/crypto v0.56.0 && \
+    floor golang.org/x/net v0.62.0 && \
+    floor golang.org/x/text v0.41.0 && floor github.com/go-jose/go-jose/v4 v4.1.6 && floor github.com/klauspost/compress v1.20.2 && \
+    go mod tidy && go mod vendor && rm -rf .git
+
+# --- 6) k3s v1.37.2+k3s1 SOURCE (./cmd/server, the embedded API server) ---------------------------
+# The k3s RELEASE binary is a self-extracting wrapper (cmd/k3s): scanners see only the wrapper, while what runs is
+# data/<hash>/bin/k3s (./cmd/server), inside a zstd blob no scanner opens. Measured 2026-10-21 (chain 414): wrapper
+# go1.26.8; the inner server binary go1.26.8 + x/crypto 0.47.0 + x/net 0.55.0 + x/mod 0.38.0 = 10 critical + 21 high
+# fixable, all invisible to Scout. So ./cmd/server is vendored here and built from source on the pinned Go in
+# Dockerfile.offline.pinned, then shipped as the k3s binary itself: no wrapper, no extracted k3s-root userland (under
+# --disable-agent the server never starts containerd/runc/CNI, and --rootless only relocates its data dir).
+# k3s pins x/crypto and x/net with REPLACE directives (a replace overrides require), so floor() raises the replace
+# when the module has one. Charts and manifests are embedded the way upstream's scripts/build does (manifests/* ->
+# pkg/deploy/embed, build/static/charts -> pkg/static/embed); the two charts are sha256-pinned: the files k3s v1.37.2+k3s1's
+# manifests/traefik.yaml names, read from k3s.io on 2026-11-08 (not compared with the release binary's embedded copies).
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS k3svendor
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off
+WORKDIR /k3s
+RUN git clone --depth 1 --branch v1.37.2+k3s1 -q https://github.com/k3s-io/k3s.git . && \
+    test "$(git rev-parse HEAD)" = f6973cb850e9b245585363d15bde80904ac862fd
+RUN floor() { e=$(mktemp); cur=$(go list -mod=mod -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$1" 2>"$e") || \
+        { grep -q 'not a known dependency' "$e" && return 0; cat "$e" >&2; return 1; }; \
+      [ -n "$cur" ] || return 0; [ "$(printf '%s\n%s\n' "$cur" "$2" | sort -V | tail -1)" = "$cur" ] && return 0; \
+      rp=$(go list -mod=mod -m -f '{{if .Replace}}r{{end}}' "$1") || return 1; if [ -n "$rp" ]; then go mod edit -replace="$1=$1@$2"; \
+      else go mod edit -require="$1@$2"; fi; } && \
+    floor golang.org/x/crypto v0.56.0 && \
+    floor golang.org/x/net v0.62.0 && \
+    floor golang.org/x/mod v0.40.0 && \
+    floor golang.org/x/text v0.41.0 && \
+    floor google.golang.org/grpc v1.83.2 && floor github.com/go-jose/go-jose/v4 v4.1.6 && floor github.com/klauspost/compress v1.20.2 && \
+    floor github.com/nats-io/nats-server/v2 v2.14.3 && \
+    floor github.com/pion/dtls/v3 v3.1.4 && \
+    floor github.com/pion/stun/v3 v3.1.5 && \
+    floor github.com/quic-go/webtransport-go v0.11.1 && \
+    floor go.opentelemetry.io/otel v1.47.0 && \
+    floor go.opentelemetry.io/otel/trace v1.47.0 && \
+    floor go.opentelemetry.io/otel/sdk v1.47.0 && \
+    floor go.opentelemetry.io/otel/metric v1.47.0 && \
+    go mod tidy && go mod vendor && \
+    want() { v=$(go list -mod=mod -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$1") && \
+      [ "$v" = "$2" ] || { echo "$1 resolved to '$v'; Dockerfile.offline.pinned stamps $2" >&2; return 1; }; } && \
+    want k8s.io/kubernetes v1.37.2-k3s1 && \
+    want github.com/containerd/containerd/v2 v2.3.7-k3s1 && \
+    want sigs.k8s.io/cri-tools v1.37.0-k3s1 && \
+    want github.com/cloudnativelabs/kube-router/v2 v2.11.1-k3s1 && \
+    want github.com/Mirantis/cri-dockerd v0.3.19-k3s5
+# ^ the -X version stamps in Dockerfile.offline.pinned (upstream scripts/version.sh derives them from go.mod), so a
+#   drift fails the vendor build, with the module and both versions, instead of mislabelling the binary.
+RUN cp -a manifests/* pkg/deploy/embed/ && mkdir -p pkg/static/embed/charts && \
+    for c in traefik-crd/traefik-crd-41.6.101+up41.6.1.tgz traefik/traefik-41.6.101+up41.6.1.tgz; do \
+      curl -fsSL --retry 3 -o "pkg/static/embed/charts/${c#*/}" "https://k3s.io/k3s-charts/assets/$c"; done && \
+    printf '%s\n' \
+      "e519eccf3d8f5d7a2ba321c5455a2760d5c58a8cf87df7933a112188c3026a3f  pkg/static/embed/charts/traefik-crd-41.6.101+up41.6.1.tgz" \
+      "58f896d1ecbc981aecd9999765bab81627858a89a936ec0c5954064e7634280d  pkg/static/embed/charts/traefik-41.6.101+up41.6.1.tgz" \
+      | sha256sum -c - && \
+    rm -rf .git
+
+# --- 7) apt CVE dist-upgrade closure + runtime packages (offline dpkg install) ---------------------
+FROM ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289 AS debvendor
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get -y --download-only --no-install-recommends dist-upgrade && \
+    apt-get -y --download-only --no-install-recommends install \
+      git tini ca-certificates gpg gpg-agent tzdata openssh-client redis-server supervisor uidmap curl && \
+    mkdir -p /debs && cp /var/cache/apt/archives/*.deb /debs/ && \
+    echo "vendored $(ls -1 /debs/*.deb | wc -l) debs"
+# CVE floors on OS packages mirror strategies/argocd.json apt_refresh (hand kits do not read it): the version the offline
+# build installs (the vendored deb, else the pinned base's own) must be at or above its fixed version, else the vendor
+# run fails here instead of shipping it; a floor whose package the image does not carry has nothing to raise.
+RUN atleast() { v=; for d in /debs/*.deb; do [ -e "$d" ] && [ "$(dpkg-deb -f "$d" Package)" = "$1" ] && \
+        v=$(dpkg-deb -f "$d" Version); done; \
+      [ -n "$v" ] || v=$(dpkg-query -W -f='${db:Status-Abbrev} ${Version}' "$1" 2>/dev/null | sed -n 's/^ii *//p'); \
+      if [ -z "$v" ]; then echo "apt floor $1 $2: not in the image"; return 0; fi; \
+      dpkg --compare-versions "$v" ge "$2" || { echo "apt floor $1 $2 did not take: $v" >&2; return 1; }; \
+      echo "apt floor $1 $2: $v"; } && \
+    atleast apt 2.8.4ubuntu0.1 && atleast libapt-pkg6.0t64 2.8.4ubuntu0.1 && atleast libpcre2-8-0 10.42-4ubuntu2.2
+
+FROM scratch AS export
+COPY --from=argocdvendor /src /argocd-src
+COPY --from=helmvendor /helm /helm-src
+COPY --from=kustomizevendor /kz /kustomize-src
+COPY --from=gitlfsvendor /lfs /gitlfs-src
+COPY --from=k3svendor /k3s /k3s-src
+COPY --from=debvendor /debs /debs

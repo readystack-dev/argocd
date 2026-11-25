@@ -1,0 +1,164 @@
+{
+  "apt_refresh": [
+    {
+      "min_version": "2.8.4ubuntu0.1",
+      "package": "apt",
+      "reason": "CVE-2026-109518 (high): apt 2.8.3 -> 2.8.4ubuntu0.1 (fix published 2026-11-04), found by ReadyStack's daily scan of the live v3.5.6-CE-ubuntu24.04-r1 (2026-11-07, scripts/scan-inventory.py: syft 1.54.1 + grype 0.120.1). Mirrored in product-kits/argocd/build/ (hand kits do not read apt_refresh): Dockerfile.vendor fails unless the dist-upgrade closure meets it, and the offline Dockerfiles fail unless the installed package does."
+    },
+    {
+      "min_version": "2.8.4ubuntu0.1",
+      "package": "libapt-pkg6.0t64",
+      "reason": "CVE-2026-109518 (high): libapt-pkg6.0t64 2.8.3 -> 2.8.4ubuntu0.1 (the library of the same apt source package), found with apt by the same scan. Mirrored in product-kits/argocd/build/ (hand kits do not read apt_refresh): Dockerfile.vendor fails unless the dist-upgrade closure meets it, and the offline Dockerfiles fail unless the installed package does."
+    },
+    {
+      "min_version": "10.42-4ubuntu2.2",
+      "package": "libpcre2-8-0",
+      "reason": "CVE-2026-86145, CVE-2026-89156, CVE-2026-89157, CVE-2026-89158, CVE-2026-89160, CVE-2026-89161, CVE-2026-103111 (medium): libpcre2-8-0 10.42-4ubuntu2.1 -> 10.42-4ubuntu2.2 (git links it); the dist-upgrade closure takes it with apt, the floor the fleet's other Ubuntu kits carry (strategies/kubeapiserver.json apt_refresh). Mirrored in product-kits/argocd/build/ (hand kits do not read apt_refresh): Dockerfile.vendor fails unless the dist-upgrade closure meets it, and the offline Dockerfiles fail unless the installed package does."
+    }
+  ],
+  "binaries_from_source": [
+    {
+      "ldflags_note": "upstream's Makefile (argocd-all) stamps -X github.com/argoproj/argo-cd/v3/common.{version,buildDate,gitCommit,gitTreeState,gitTag,kubectlVersion}; the hand kit's Dockerfile.offline.pinned sets them to @VERSION_BARE@ / the tag commit's committer date / @COMMIT@ / clean / @REF@ / client-go v0.37.0 (v3.6.2's go.mod)",
+      "main_pkg": "./cmd",
+      "name": "argocd",
+      "out": "/usr/local/bin/argocd",
+      "symlinks": [
+        "argocd-server",
+        "argocd-repo-server",
+        "argocd-application-controller",
+        "argocd-dex-server",
+        "argocd-applicationset-controller",
+        "argocd-notifications-controller"
+      ]
+    }
+  ],
+  "build_method": "source-rebuild-go",
+  "chain_id": 1234,
+  "dep_bumps": [
+    {
+      "module": "github.com/go-git/go-git/v5",
+      "to": "v5.19.2",
+      "why": "v3.5.4 pins v5.19.1 (1 high + 1 medium fixable, fixed in 5.19.2). Applied raise-only by floor() in product-kits/argocd/build/Dockerfile.vendor."
+    },
+    {
+      "module": "google.golang.org/grpc",
+      "to": "v1.83.2",
+      "why": "v3.5.4 requires v1.81.1; the high/medium advisories on 1.79.3-1.81.x are fixed in 1.82.1/1.82.2/1.83.1, and GHSA-2v4p-qf9q-27wj (high) is still open on 1.83.1, fixed in 1.83.2 (grype on the compiled argocd and helm binaries, 2026-10-10). Raise-only: the old kit's `go get grpc@v1.79.3` would have DOWNGRADED v3.5.x."
+    },
+    {
+      "module": "golang.org/x/crypto",
+      "to": "v0.56.0",
+      "why": "v3.5.4 pins v0.53.0 (3 high fixable on 2026-10-10, fixed in 0.55.0/0.56.0)."
+    },
+    {
+      "module": "golang.org/x/net",
+      "to": "v0.62.0",
+      "why": "CVE-2026-78661 / GO-2026-6860 (HIGH, published 2026-10-27): golang.org/x/net below 0.62.0 is in the vulnerable range; fixed in 0.62.0 (its go.mod needs go 1.26.0 and moves x/crypto to 0.58.0, x/sys 0.49.0, x/term 0.47.0, x/text 0.43.0). v3.5.6's go.mod requires 0.59.0; the kit floors every Go tree it vendors (argocd, helm, kustomize, git-lfs, k3s ./cmd/server; k3s by its replace). With this floor's previous value v0.60.0 (Go 1.26.9 companion, 2026-10-10), ReadyStack's daily scan of the live release v3.5.6-CE-ubuntu24.04-r1 (2026-11-06, scripts/scan-inventory.py: syft 1.54.1 + grype 0.120.1) found 0.60.0 in argocd, helm, git-lfs and k3s. Mirrored in product-kits/argocd/build/Dockerfile.vendor."
+    },
+    {
+      "module": "golang.org/x/text",
+      "to": "v0.41.0",
+      "why": "v3.5.4 resolves v0.38.0 (2 high fixable, fixed in 0.39.0/0.41.0)."
+    },
+    {
+      "module": "oras.land/oras-go/v2",
+      "to": "v2.6.2",
+      "why": "v3.5.4 and helm v4.2.4 pin v2.6.1; 3 high + 3 medium fixable on v2.6.0, the newest fixed only in v2.6.2."
+    },
+    {
+      "module": "github.com/klauspost/compress",
+      "to": "v1.20.2",
+      "why": "GO-2026-6865 / CVE-2026-116591 (high): github.com/klauspost/compress below 1.20.2 is in the vulnerable range. ReadyStack's daily scan of the live release v3.5.6-CE-ubuntu24.04-r1 (2026-11-07) found v1.18.7 and v1.20.0 in its binaries; argocd v3.6.1's go.mod requires v1.19.1 and k3s v1.37.2+k3s1's v1.20.0. The kit floors every Go tree it vendors (argocd, helm, kustomize, git-lfs, k3s ./cmd/server) at v1.20.2 (product-kits/argocd/build/Dockerfile.vendor) and checks each binary with `go version -m` (Dockerfile.offline.pinned). Previous value v1.18.7 (2026-10-10: v3.5.4 resolved v1.18.0)."
+    },
+    {
+      "module": "golang.org/x/mod",
+      "to": "v0.40.0",
+      "why": "k3s v1.36.5+k3s1 (source-built in the kit since 2026-10-21) requires v0.38.0: 2 high fixable (CVE-2026-56864/56865, fixed in 0.40.0). Applied raise-only by floor() in Dockerfile.vendor's k3svendor stage; tidy resolves v0.41.0. k3s v1.37.2+k3s1 (2026-11-08) requires v0.41.0 itself, so the floor no longer raises it; it stays as the minimum the binary check enforces."
+    },
+    {
+      "module": "github.com/nats-io/nats-server/v2",
+      "to": "v2.14.3",
+      "why": "GHSA-r72h-j7qq-v6qg and GHSA-qrcv-3558-gj4f (high) and four medium advisories: ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23, syft + grype) found v2.14.0 in /usr/local/lib/k3s/k3s (k3s v1.37.2+k3s1 requires it, through kine); all are fixed in 2.14.3. Applied raise-only by floor() in product-kits/argocd/build/Dockerfile.vendor's k3svendor stage and checked on the k3s binary in Dockerfile.offline.pinned."
+    },
+    {
+      "module": "github.com/pion/dtls/v3",
+      "to": "v3.1.4",
+      "why": "GHSA-wg4g-wm44-ch5j (medium): ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23, syft + grype) found v3.1.2 in the k3s binary; fixed in 3.1.4. k3svendor stage, raise-only."
+    },
+    {
+      "module": "github.com/pion/stun/v3",
+      "to": "v3.1.5",
+      "why": "GHSA-34rh-wp3j-6cxc (medium): ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23, syft + grype) found v3.1.1 in the k3s binary; fixed in 3.1.5. k3svendor stage, raise-only."
+    },
+    {
+      "module": "github.com/quic-go/webtransport-go",
+      "to": "v0.11.1",
+      "why": "GHSA-g35j-m5xg-vh3q (medium): ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23, syft + grype) found v0.10.0 in the k3s binary; fixed in 0.11.1, which requires the same quic-go v0.60.0 as k3s v1.37.2+k3s1. k3svendor stage, raise-only."
+    },
+    {
+      "module": "go.opentelemetry.io/otel/trace",
+      "to": "v1.47.0",
+      "why": "GHSA-q7gw-24fr-5p69 (medium): ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23, syft + grype) found v1.46.0 of otel/trace in /usr/local/bin/argocd and of otel/sdk in the k3s binary; fixed in 1.47.0. The kit raises the OpenTelemetry Go modules each tree uses together (otel, otel/trace, otel/sdk, otel/metric, and in argocd the otlptrace exporters), since upstream releases them in lockstep, raise-only in the argocd and k3s vendor stages."
+    },
+    {
+      "module": "go.opentelemetry.io/otel",
+      "to": "v1.47.0",
+      "why": "OpenTelemetry Go releases these modules in lockstep; GHSA-q7gw-24fr-5p69 (medium, fixed in 1.47.0) was found by ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23) on otel/trace v1.46.0 in /usr/local/bin/argocd and otel/sdk v1.46.0 in the k3s binary. The kit raises this module with otel/trace to v1.47.0 so the family stays on one version, raise-only, in every tree that uses it (argocd; k3s for the core modules)."
+    },
+    {
+      "module": "go.opentelemetry.io/otel/sdk",
+      "to": "v1.47.0",
+      "why": "OpenTelemetry Go releases these modules in lockstep; GHSA-q7gw-24fr-5p69 (medium, fixed in 1.47.0) was found by ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23) on otel/trace v1.46.0 in /usr/local/bin/argocd and otel/sdk v1.46.0 in the k3s binary. The kit raises this module with otel/trace to v1.47.0 so the family stays on one version, raise-only, in every tree that uses it (argocd; k3s for the core modules)."
+    },
+    {
+      "module": "go.opentelemetry.io/otel/metric",
+      "to": "v1.47.0",
+      "why": "OpenTelemetry Go releases these modules in lockstep; GHSA-q7gw-24fr-5p69 (medium, fixed in 1.47.0) was found by ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23) on otel/trace v1.46.0 in /usr/local/bin/argocd and otel/sdk v1.46.0 in the k3s binary. The kit raises this module with otel/trace to v1.47.0 so the family stays on one version, raise-only, in every tree that uses it (argocd; k3s for the core modules)."
+    },
+    {
+      "module": "go.opentelemetry.io/otel/exporters/otlp/otlptrace",
+      "to": "v1.47.0",
+      "why": "OpenTelemetry Go releases these modules in lockstep; GHSA-q7gw-24fr-5p69 (medium, fixed in 1.47.0) was found by ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23) on otel/trace v1.46.0 in /usr/local/bin/argocd and otel/sdk v1.46.0 in the k3s binary. The kit raises this module with otel/trace to v1.47.0 so the family stays on one version, raise-only, in every tree that uses it (argocd; k3s for the core modules)."
+    },
+    {
+      "module": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
+      "to": "v1.47.0",
+      "why": "OpenTelemetry Go releases these modules in lockstep; GHSA-q7gw-24fr-5p69 (medium, fixed in 1.47.0) was found by ReadyStack's daily scan of the live release v3.6.1-CE-ubuntu24.04-r1 (2026-11-23) on otel/trace v1.46.0 in /usr/local/bin/argocd and otel/sdk v1.46.0 in the k3s binary. The kit raises this module with otel/trace to v1.47.0 so the family stays on one version, raise-only, in every tree that uses it (argocd; k3s for the core modules)."
+    }
+  ],
+  "expected_residuals": [],
+  "images": [
+    {
+      "digest": "sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea",
+      "ref": "golang:1.27.4-bookworm",
+      "role": "offline_builder"
+    }
+  ],
+  "mod_replaces": [],
+  "runtime_packages": [
+    "git",
+    "tini",
+    "ca-certificates",
+    "gpg",
+    "gpg-agent",
+    "tzdata",
+    "openssh-client",
+    "redis-server",
+    "supervisor",
+    "uidmap",
+    "curl"
+  ],
+  "schema": "kitforge.toolchain_lock.v1",
+  "slug": "argocd",
+  "source": {
+    "commit": "8e8268ef2f3df99ca95663f5080fa6056f156805",
+    "commit_epoch": 1795028145,
+    "module": "github.com/argoproj/argo-cd/v3",
+    "ref": "v3.6.2",
+    "repo": "https://github.com/argoproj/argo-cd.git",
+    "source_date_epoch": 1795543208,
+    "source_date_epoch_basis": "release-cut",
+    "source_date_epoch_provenance": "the time release v3.6.2-CE-ubuntu24.04-r2 was cut (2026-11-24T18:00:08Z), by scripts/rerelease-agenda.py: ReadyStack dates an image by when its release was packaged (owner 2026-11-10), recorded here once and used by every rebuild of the release; it builds upstream commit 8e8268ef2f3d, dated 2026-11-18T18:55:45Z (source.commit_epoch)."
+  },
+  "version": "v3.6.2"
+}
