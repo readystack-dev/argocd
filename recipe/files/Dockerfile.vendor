@@ -1,12 +1,12 @@
 # =====================================================================
-# Argo CD v3.6.2 VENDOR STAGE (online). Does ALL the network work and exports a build-ready,
+# Argo CD v3.6.3 VENDOR STAGE (online). Does ALL the network work and exports a build-ready,
 # fully-vendored tree, so Dockerfile.offline.pinned builds with --network=none:
-#   - argocd-src   : argo-cd v3.6.2 with the UI built from source (pnpm, webpack) into ui/dist/app
+#   - argocd-src   : argo-cd v3.6.3 with the UI built from source (pnpm, webpack) into ui/dist/app
 #                    (embedded by ui/embed.go), CVE floors applied raise-only, `go mod vendor`.
 #                    manifests/install.yaml (the CRDs/RBAC/config bootstrap.sh applies) rides along.
-#   - helm-src     : helm v4.3.2   (upstream v3.6.2's pin, helm's latest release)
-#   - kustomize-src: kustomize v5.8.3 (upstream v3.6.2's pin; needs Go 1.27, which this kit now builds on)
-#   - gitlfs-src   : git-lfs v3.8.1 (upstream v3.6.2's pin, git-lfs's latest release)
+#   - helm-src     : helm v4.3.2   (upstream v3.6.3's pin, helm's latest release)
+#   - kustomize-src: kustomize v5.8.3 (upstream v3.6.3's pin; needs Go 1.27, which this kit now builds on)
+#   - gitlfs-src   : git-lfs v3.8.1 (upstream v3.6.3's pin, git-lfs's latest release)
 #     argocd's repo-server shells out to helm/kustomize/git-lfs. Upstream's hack/install.sh downloads
 #     their PREBUILT release binaries (stale Go stdlib + modules, and network at build time); all three
 #     are rebuilt from source here on the same Go toolchain as argocd.
@@ -23,21 +23,21 @@
 FROM node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4 AS ui
 ENV NPM_CONFIG_FUND=false NPM_CONFIG_AUDIT=false CI=true
 WORKDIR /argo
-RUN git clone --depth 1 --branch v3.6.2 -q https://github.com/argoproj/argo-cd.git . && \
-    test "$(git rev-parse HEAD)" = 8e8268ef2f3df99ca95663f5080fa6056f156805
+RUN git clone --depth 1 --branch v3.6.3 -q https://github.com/argoproj/argo-cd.git . && \
+    test "$(git rev-parse HEAD)" = b4accc482028fd529b3e4508ef9f28977b552b50
 WORKDIR /argo/ui
-# Same commands as upstream's argocd-ui stage (Dockerfile at v3.6.2): corepack 0.34.6 -> pnpm from
+# Same commands as upstream's argocd-ui stage (Dockerfile at v3.6.3): corepack 0.34.6 -> pnpm from
 # package.json's packageManager, frozen lockfile, production webpack build.
 RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile && \
-    NODE_ENV=production NODE_ONLINE_ENV=online ARGO_VERSION=v3.6.2 NODE_OPTIONS=--max_old_space_size=8192 pnpm build && \
+    NODE_ENV=production NODE_ONLINE_ENV=online ARGO_VERSION=v3.6.3 NODE_OPTIONS=--max_old_space_size=8192 pnpm build && \
     test -f dist/app/index.html && echo "ui dist: $(du -sh dist/app | cut -f1)"
 
 # --- 2) argocd: Go module tree, CVE floors, vendored --------------------------------------------
 FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS argocdvendor
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src
-RUN git clone --depth 1 --branch v3.6.2 -q https://github.com/argoproj/argo-cd.git . && \
-    test "$(git rev-parse HEAD)" = 8e8268ef2f3df99ca95663f5080fa6056f156805
+RUN git clone --depth 1 --branch v3.6.3 -q https://github.com/argoproj/argo-cd.git . && \
+    test "$(git rev-parse HEAD)" = b4accc482028fd529b3e4508ef9f28977b552b50
 COPY --from=ui /argo/ui/dist/app/ ui/dist/app/
 # CVE floors (mirror strategies/argocd.json dep_bumps). floor() raises a module only when the source
 # pins it LOWER and never lowers it: a bare `go get m@vX` SETS the version, and v3.5.x already requires
@@ -67,7 +67,7 @@ RUN floor() { e=$(mktemp); cur=$(go list -mod=mod -m -f '{{.Version}}' "$1" 2>"$
     { [ "$kv" = v0.37.0 ] || { echo "k8s.io/client-go resolved to '$kv'; Dockerfile.offline.pinned stamps kubectlVersion=v0.37.0" >&2; exit 1; }; } && \
     rm -rf .git ui/node_modules
 # ^ k8s.io/client-go is what upstream's Makefile stamps as common.kubectlVersion; Dockerfile.offline.pinned
-#   hardcodes v0.37.0 (v3.6.2's go.mod), so a drift here fails the vendor build instead of mislabelling the binary,
+#   hardcodes v0.37.0 (v3.6.3's go.mod), so a drift here fails the vendor build instead of mislabelling the binary,
 #   and says so: chain 872 (2026-11-08) parked here on a bare `test` still expecting v3.5.6's v0.36.1, which exits 1
 #   without a word, so the log's last lines were go mod tidy's downloads.
 #   .git is stripped: build_kit serves the kit as a git context and rejects a nested repository.

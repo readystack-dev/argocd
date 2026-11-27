@@ -18,7 +18,7 @@
   ],
   "binaries_from_source": [
     {
-      "ldflags_note": "upstream's Makefile (argocd-all) stamps -X github.com/argoproj/argo-cd/v3/common.{version,buildDate,gitCommit,gitTreeState,gitTag,kubectlVersion}; the hand kit's Dockerfile.offline.pinned sets them to @VERSION_BARE@ / the tag commit's committer date / @COMMIT@ / clean / @REF@ / client-go v0.37.0 (v3.6.2's go.mod)",
+      "ldflags_note": "upstream's Makefile (argocd-all) stamps -X github.com/argoproj/argo-cd/v3/common.{version,buildDate,gitCommit,gitTreeState,gitTag,kubectlVersion}; the hand kit's Dockerfile.offline.pinned sets them to @VERSION_BARE@ / the tag commit's committer date / @COMMIT@ / clean / @REF@ / client-go v0.37.0 (v3.6.3's go.mod)",
       "main_pkg": "./cmd",
       "name": "argocd",
       "out": "/usr/local/bin/argocd",
@@ -33,7 +33,7 @@
     }
   ],
   "build_method": "source-rebuild-go",
-  "chain_id": 1234,
+  "chain_id": 1262,
   "dep_bumps": [
     {
       "module": "github.com/go-git/go-git/v5",
@@ -68,7 +68,7 @@
     {
       "module": "github.com/klauspost/compress",
       "to": "v1.20.2",
-      "why": "GO-2026-6865 / CVE-2026-116591 (high): github.com/klauspost/compress below 1.20.2 is in the vulnerable range. ReadyStack's daily scan of the live release v3.5.6-CE-ubuntu24.04-r1 (2026-11-07) found v1.18.7 and v1.20.0 in its binaries; argocd v3.6.1's go.mod requires v1.19.1 and k3s v1.37.2+k3s1's v1.20.0. The kit floors every Go tree it vendors (argocd, helm, kustomize, git-lfs, k3s ./cmd/server) at v1.20.2 (product-kits/argocd/build/Dockerfile.vendor) and checks each binary with `go version -m` (Dockerfile.offline.pinned). Previous value v1.18.7 (2026-10-10: v3.5.4 resolved v1.18.0)."
+      "why": "GO-2026-6865 / CVE-2026-116591 (high): github.com/klauspost/compress below 1.20.2 is in the vulnerable range. ReadyStack's daily scan of the live release v3.5.6-CE-ubuntu24.04-r1 (2026-11-07) found v1.18.7 and v1.20.0 in its binaries; argocd v3.6.1's go.mod requires v1.19.1 and k3s v1.37.2+k3s1's v1.20.0. The kit floors every Go tree it vendors (argocd, helm, kustomize, git-lfs, k3s ./cmd/server) at v1.20.2 (product-kits/argocd/build/Dockerfile.vendor) and checks each binary with `go version -m` (Dockerfile.offline.pinned). Previous value v1.18.7 (2026-10-10: v3.5.4 resolved v1.18.0). Argo CD v3.6.3's go.mod requires v1.20.2 itself (upstream change #31168, \"Bump github.com/klauspost/compress to v1.20.2\"), so the floor no longer raises argocd's tree; it stays for the trees that still require less (k3s v1.37.2+k3s1 requires v1.20.0, git-lfs v3.8.1 v1.19.1) and as the minimum the binary check enforces."
     },
     {
       "module": "golang.org/x/mod",
@@ -151,14 +151,14 @@
   "schema": "kitforge.toolchain_lock.v1",
   "slug": "argocd",
   "source": {
-    "commit": "8e8268ef2f3df99ca95663f5080fa6056f156805",
-    "commit_epoch": 1795028145,
+    "commit": "b4accc482028fd529b3e4508ef9f28977b552b50",
+    "commit_epoch": 1795535892,
     "module": "github.com/argoproj/argo-cd/v3",
-    "ref": "v3.6.2",
+    "ref": "v3.6.3",
     "repo": "https://github.com/argoproj/argo-cd.git",
-    "source_date_epoch": 1795543208,
+    "source_date_epoch": 1795614817,
     "source_date_epoch_basis": "release-cut",
-    "source_date_epoch_provenance": "the time release v3.6.2-CE-ubuntu24.04-r2 was cut (2026-11-24T18:00:08Z), by scripts/rerelease-agenda.py: ReadyStack dates an image by when its release was packaged (owner 2026-11-10), recorded here once and used by every rebuild of the release; it builds upstream commit 8e8268ef2f3d, dated 2026-11-18T18:55:45Z (source.commit_epoch)."
+    "source_date_epoch_provenance": "the time release v3.6.3-CE-ubuntu24.04-r1 was cut (2026-11-25T13:53:37Z), by scripts/retarget.py: ReadyStack dates an image by when its release was packaged (owner 2026-11-10), recorded here once and used by every rebuild of the release; it builds upstream commit b4accc482028, dated 2026-11-24T15:58:12Z (source.commit_epoch)."
   },
-  "version": "v3.6.2"
+  "version": "v3.6.3"
 }

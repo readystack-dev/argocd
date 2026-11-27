@@ -1,9 +1,9 @@
 # =====================================================================
-# Argo CD v3.6.2 L-009 HERMETIC OFFLINE BUILD — the canonical, attestation-producing build. build_kit runs
+# Argo CD v3.6.3 L-009 HERMETIC OFFLINE BUILD — the canonical, attestation-producing build. build_kit runs
 #   docker buildx build --builder readystack-builder-max --network=none
 #     --attest type=provenance,mode=max --attest type=sbom --push <git-context>
 # Pinned-public-base + vendored model (the container builder cannot see host images, so nothing here
-# FROMs a locally built image): golang 1.27.3 + ubuntu 24.04 pinned BY DIGEST (BASE_IMAGE_DIGESTS.lock);
+# FROMs a locally built image): golang 1.27.4 + ubuntu 24.04 pinned BY DIGEST (BASE_IMAGE_DIGESTS.lock);
 # vendored/{argocd,helm,kustomize,gitlfs,k3s}-src are fully vendored Go trees (GOPROXY=off, -mod=vendor), all five
 # compiled here on the one pinned Go; vendored/debs is the apt closure, dpkg offline.
 # Dockerfile and Dockerfile.offline are byte copies of this file (the repo-wide convention).
@@ -19,14 +19,14 @@ FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e13857
 WORKDIR /src
 COPY vendored/argocd-src/ .
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS="-mod=vendor -buildvcs=false" GOPROXY=off
-# The ldflags upstream's Makefile stamps (argocd-all), with the values fixed to the v3.6.2 tag:
-# buildDate is the release's cut date (SOURCE_DATE_EPOCH 1795543208), not the wall clock.
+# The ldflags upstream's Makefile stamps (argocd-all), with the values fixed to the v3.6.3 tag:
+# buildDate is the release's cut date (SOURCE_DATE_EPOCH 1795614817), not the wall clock.
 RUN go build -trimpath -ldflags "-s -w \
-      -X github.com/argoproj/argo-cd/v3/common.version=3.6.2 \
-      -X github.com/argoproj/argo-cd/v3/common.buildDate=2026-11-24T18:00:08Z \
-      -X github.com/argoproj/argo-cd/v3/common.gitCommit=8e8268ef2f3df99ca95663f5080fa6056f156805 \
+      -X github.com/argoproj/argo-cd/v3/common.version=3.6.3 \
+      -X github.com/argoproj/argo-cd/v3/common.buildDate=2026-11-25T13:53:37Z \
+      -X github.com/argoproj/argo-cd/v3/common.gitCommit=b4accc482028fd529b3e4508ef9f28977b552b50 \
       -X github.com/argoproj/argo-cd/v3/common.gitTreeState=clean \
-      -X github.com/argoproj/argo-cd/v3/common.gitTag=v3.6.2 \
+      -X github.com/argoproj/argo-cd/v3/common.gitTag=v3.6.3 \
       -X github.com/argoproj/argo-cd/v3/common.kubectlVersion=v0.37.0" \
       -o /out/argocd ./cmd
 # Fail closed on a stale toolchain: `go version <binary>` reads the toolchain recorded in the binary.
@@ -49,7 +49,7 @@ RUN binfloor() { b=$1; shift; go version -m "$b" > /tmp/buildinfo || return 1; w
       go.opentelemetry.io/otel/metric v1.47.0 \
       go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 \
       go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0
-RUN /out/argocd version --client --short | tee /tmp/argocd.version && grep -q 'v3\.6\.2' /tmp/argocd.version
+RUN /out/argocd version --client --short | tee /tmp/argocd.version && grep -q 'v3\.6\.3' /tmp/argocd.version
 
 FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS helm-build
 WORKDIR /helm
@@ -167,7 +167,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # and G8's rebuild of the sale tar on 2026-11-12 differed in that one file (redis:!:20768 vs redis:!:20769), and r1's
 # layer carries its build day 20766 under a SOURCE_DATE_EPOCH of day 20761. ARG, never ENV: an ENV would persist into
 # the image config and change the digest.
-ARG SOURCE_DATE_EPOCH=1795543208
+ARG SOURCE_DATE_EPOCH=1795614817
 # Offline apt: dpkg-install the vendored closure (CVE upgrades + runtime packages) with no network.
 # A Pre-Depends is only met by a CONFIGURED package, so each pass installs one more level of the
 # python3.12-minimal -> python3-minimal -> python3 chain; --skip-same-version keeps a later pass from
@@ -250,6 +250,6 @@ ENTRYPOINT ["/usr/bin/supervisord","-c","/etc/supervisor/conf.d/argocd.conf"]
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.title="Argo CD"
 LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd.git"
-LABEL org.opencontainers.image.version="v3.6.2-CE-ubuntu24.04-r2"
-LABEL org.opencontainers.image.revision="8e8268ef2f3df99ca95663f5080fa6056f156805"
+LABEL org.opencontainers.image.version="v3.6.3-CE-ubuntu24.04-r1"
+LABEL org.opencontainers.image.revision="b4accc482028fd529b3e4508ef9f28977b552b50"
 # <<< readystack OCI labels
