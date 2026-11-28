@@ -1,4 +1,4 @@
-# Provenance — Argo CD (`v3.6.3-CE-ubuntu24.04-r1`)
+# Provenance — Argo CD (`v3.6.3-CE-ubuntu24.04-r2`)
 
 Every item below is copied from a record in this archive; the record is named in brackets.
 
@@ -13,18 +13,18 @@ Every item below is copied from a record in this archive; the record is named in
 
 - Method: `source-rebuild-go`; base image `ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`
 - Compiled with `--network=none` from vendored source, dependencies and base images; BuildKit pinned to `moby/buildkit:v0.31.2` (shipped in `toolchain/`).
-- SOURCE_DATE_EPOCH: `1795614817` [`SOURCE_DATE_EPOCH.txt`]
+- SOURCE_DATE_EPOCH: `1795644302` [`SOURCE_DATE_EPOCH.txt`]
 - Frozen inputs: [`docs/provenance/FREEZE_MANIFEST.json`], build recipe: [`docs/provenance/BUILD_RECIPE.json`].
 
 ## Output
 
-- Published image: `readystack/argocd:v3.6.3-CE-ubuntu24.04-r1` — index digest `sha256:ab94bb8d54d320fec046f066482c8a66fc27eeaa650702253d4e3bf5560d2985` [`docs/provenance/LOCKED_DIGEST.txt`]
-- linux/amd64 image digest `sha256:3cd491049cfb4f7719833a3ff491831b7f998150ee0671123bb4a30196825c1b` — reproduced from this archive before publishing [`docs/provenance/REPRO_VERIFICATION.json`].
+- Published image: `readystack/argocd:v3.6.3-CE-ubuntu24.04-r2` — index digest `sha256:87d2dbf508966425924409624ff576494edffb973be6d92d2917d96fecb3fd54` [`docs/provenance/LOCKED_DIGEST.txt`]
+- linux/amd64 image digest `sha256:28c1e0786de4f0d58f9b8a6433a723c038feac7af45a687d9703ecb8d1804934` — reproduced from this archive before publishing [`docs/provenance/REPRO_VERIFICATION.json`].
 
 ## Attestations and signature
 
 - SBOM + SLSA provenance attached to the image: attached: an SPDX SBOM and SLSA v1 provenance [`docs/provenance/SCOUT_VERDICT.json`]
-- cosign signature by the ReadyStack release key: verified before publishing. Check it: `cosign verify --key https://readystack.dev/keys/cosign.pub readystack/argocd:v3.6.3-CE-ubuntu24.04-r1`
+- cosign signature by the ReadyStack release key: verified before publishing. Check it: `cosign verify --key https://readystack.dev/keys/cosign.pub readystack/argocd:v3.6.3-CE-ubuntu24.04-r2`
 
 ## Pinned inputs, and why
 
@@ -32,5 +32,5 @@ Every item below is copied from a record in this archive; the record is named in
 
 ## Build trail
 
-- How this release passed through the ReadyStack harness, record by record (every chain, drive, stage, review round, defect and check, each naming the record it is copied from): `ReadyStack-argocd-v3.6.3-CE-ubuntu24.04-r1.trail.json`, published beside this archive and signed with the release key (`ReadyStack-argocd-v3.6.3-CE-ubuntu24.04-r1.trail.json.sigstore`), and readable at https://readystack.dev/products/argocd/trail/v3.6.3-CE-ubuntu24.04-r1.
+- How this release passed through the ReadyStack harness, record by record (every chain, drive, stage, review round, defect and check, each naming the record it is copied from): `ReadyStack-argocd-v3.6.3-CE-ubuntu24.04-r2.trail.json`, published beside this archive and signed with the release key (`ReadyStack-argocd-v3.6.3-CE-ubuntu24.04-r2.trail.json.sigstore`), and readable at https://readystack.dev/products/argocd/trail/v3.6.3-CE-ubuntu24.04-r2.
 

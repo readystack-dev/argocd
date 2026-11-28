@@ -21,8 +21,8 @@
     "context": ".",
     "dockerfile": "Dockerfile.offline.pinned",
     "mtime_policy": "clamp",
-    "source_date_epoch": 1795614817,
-    "tree_hash": "sha256:961de4d7f50821f719ae0702b94edc23ce21f1e44dd452145367fca766aa43f3"
+    "source_date_epoch": 1795644302,
+    "tree_hash": "sha256:8b39cff70ed8575b9345fa7f13ed6b33214d671c82173be5f5a66e82014d3570"
   },
   "probe": {
     "http_path": "/healthz",
@@ -31,8 +31,8 @@
   },
   "schema": "readystack-rebuild-bundle/v0.1",
   "subject": {
-    "config_digest": "sha256:5d6831680a7d6d0bd61c7ef84f4a05c895e40aec0aba36673b2914d9d9a94b69",
-    "image_manifest_digest": "sha256:3cd491049cfb4f7719833a3ff491831b7f998150ee0671123bb4a30196825c1b",
-    "name": "docker.io/readystack/argocd:v3.6.3-CE-ubuntu24.04-r1"
+    "config_digest": "sha256:9e2888a70857701ba26caaaceb5b1721e3727732a419f69812a6916065351cc0",
+    "image_manifest_digest": "sha256:28c1e0786de4f0d58f9b8a6433a723c038feac7af45a687d9703ecb8d1804934",
+    "name": "docker.io/readystack/argocd:v3.6.3-CE-ubuntu24.04-r2"
   }
 }

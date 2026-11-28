@@ -20,10 +20,10 @@ WORKDIR /src
 COPY vendored/argocd-src/ .
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS="-mod=vendor -buildvcs=false" GOPROXY=off
 # The ldflags upstream's Makefile stamps (argocd-all), with the values fixed to the v3.6.3 tag:
-# buildDate is the release's cut date (SOURCE_DATE_EPOCH 1795614817), not the wall clock.
+# buildDate is the release's cut date (SOURCE_DATE_EPOCH 1795644302), not the wall clock.
 RUN go build -trimpath -ldflags "-s -w \
       -X github.com/argoproj/argo-cd/v3/common.version=3.6.3 \
-      -X github.com/argoproj/argo-cd/v3/common.buildDate=2026-11-25T13:53:37Z \
+      -X github.com/argoproj/argo-cd/v3/common.buildDate=2026-11-25T22:05:02Z \
       -X github.com/argoproj/argo-cd/v3/common.gitCommit=b4accc482028fd529b3e4508ef9f28977b552b50 \
       -X github.com/argoproj/argo-cd/v3/common.gitTreeState=clean \
       -X github.com/argoproj/argo-cd/v3/common.gitTag=v3.6.3 \
@@ -167,7 +167,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # and G8's rebuild of the sale tar on 2026-11-12 differed in that one file (redis:!:20768 vs redis:!:20769), and r1's
 # layer carries its build day 20766 under a SOURCE_DATE_EPOCH of day 20761. ARG, never ENV: an ENV would persist into
 # the image config and change the digest.
-ARG SOURCE_DATE_EPOCH=1795614817
+ARG SOURCE_DATE_EPOCH=1795644302
 # Offline apt: dpkg-install the vendored closure (CVE upgrades + runtime packages) with no network.
 # A Pre-Depends is only met by a CONFIGURED package, so each pass installs one more level of the
 # python3.12-minimal -> python3-minimal -> python3 chain; --skip-same-version keeps a later pass from
@@ -250,6 +250,6 @@ ENTRYPOINT ["/usr/bin/supervisord","-c","/etc/supervisor/conf.d/argocd.conf"]
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.title="Argo CD"
 LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd.git"
-LABEL org.opencontainers.image.version="v3.6.3-CE-ubuntu24.04-r1"
+LABEL org.opencontainers.image.version="v3.6.3-CE-ubuntu24.04-r2"
 LABEL org.opencontainers.image.revision="b4accc482028fd529b3e4508ef9f28977b552b50"
 # <<< readystack OCI labels

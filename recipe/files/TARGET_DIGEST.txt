@@ -1,6 +1,6 @@
-image_manifest_digest=sha256:3cd491049cfb4f7719833a3ff491831b7f998150ee0671123bb4a30196825c1b
-config_digest=sha256:5d6831680a7d6d0bd61c7ef84f4a05c895e40aec0aba36673b2914d9d9a94b69
-tag=readystack/argocd:v3.6.3-CE-ubuntu24.04-r1
+image_manifest_digest=sha256:28c1e0786de4f0d58f9b8a6433a723c038feac7af45a687d9703ecb8d1804934
+config_digest=sha256:9e2888a70857701ba26caaaceb5b1721e3727732a419f69812a6916065351cc0
+tag=readystack/argocd:v3.6.3-CE-ubuntu24.04-r2
 probe_port=8080
 probe_path=/healthz
 probe_timeout=300
